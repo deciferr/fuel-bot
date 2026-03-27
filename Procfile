@@ -1,1 +1,1 @@
-worker: python fuel-bot.py
+worker: python fuel_bot.py
