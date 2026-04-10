@@ -17,10 +17,11 @@ URLS = [
 ]
 
 # Filter: only these fuel types trigger alerts
-FUEL_FILTER = {"Diesel", "Gasoline"}  # Add "Kerosene" if desired
+FUEL_FILTER = {"Diesel", "Gasoline"}  # Add "Kerosene" if needed
 
 # Keep track of messages already sent
 last_sent_messages = set()
+
 
 def fetch_articles():
     articles = []
@@ -28,17 +29,22 @@ def fetch_articles():
         try:
             res = requests.get(url, timeout=10)
             soup = BeautifulSoup(res.text, "html.parser")
+
             for a in soup.find_all("a"):
                 text = a.get_text().strip()
                 if len(text) > 30:
                     articles.append(text)
+
         except Exception as e:
             print(f"Error fetching {url}: {e}")
             continue
+
     return articles
+
 
 def extract_price_info(text):
     text_lower = text.lower()
+
     fuel_type = None
     if "diesel" in text_lower:
         fuel_type = "Diesel"
@@ -51,26 +57,31 @@ def extract_price_info(text):
     if fuel_type not in FUEL_FILTER:
         return None
 
+    # Improved direction detection
     direction = None
-    if "increase" in text_lower or "hike" in text_lower:
+    if any(word in text_lower for word in ["increase", "hike", "up", "rise"]):
         direction = "⬆️ Increase"
-    elif "rollback" in text_lower or "decrease" in text_lower:
+    elif any(word in text_lower for word in ["rollback", "decrease", "down", "cut"]):
         direction = "⬇️ Rollback"
 
+    # Extract numbers (₱ values)
     matches = re.findall(r'₱?\d+(\.\d+)?', text)
     values = []
 
     for m in matches:
         try:
             val = float(m.replace("₱", ""))
-            if val < 10:
+            # Relaxed filter (was <10 before)
+            if val < 20:
                 values.append(val)
         except:
             continue
 
     if fuel_type and direction and values:
         return fuel_type, direction, min(values), max(values)
+
     return None
+
 
 def send_to_discord(message):
     try:
@@ -79,11 +90,16 @@ def send_to_discord(message):
     except Exception as e:
         print("Error sending to Discord:", e)
 
+
 def main():
     global last_sent_messages
-    articles = fetch_articles()
 
+    articles = fetch_articles()
     print(f"Fetched {len(articles)} articles")
+
+    # ✅ STEP 5: TEST MESSAGE (REMOVE AFTER CONFIRMATION)
+    send_to_discord("✅ TEST MESSAGE FROM FUEL BOT")
+    print("Sent test message")
 
     for article in articles:
         print("Checking:", article[:100])
@@ -106,3 +122,11 @@ Estimated Change: ₱{min_val:.2f} – ₱{max_val:.2f} per liter
             if message not in last_sent_messages:
                 send_to_discord(message)
                 last_sent_messages.add(message)
+
+
+# Continuous loop
+if __name__ == "__main__":
+    while True:
+        main()
+        # 5 minutes interval (for testing)
+        time.sleep(300)
