@@ -83,10 +83,16 @@ def main():
     global last_sent_messages
     articles = fetch_articles()
 
+    print(f"Fetched {len(articles)} articles")
+
     for article in articles:
+        print("Checking:", article[:100])
+
         result = extract_price_info(article)
+
         if result:
             fuel, direction, min_val, max_val = result
+
             message = f"""
 ⛽ Fuel Price Alert
 
@@ -95,14 +101,8 @@ Direction: {direction}
 Estimated Change: ₱{min_val:.2f} – ₱{max_val:.2f} per liter
 """
 
+            print("MATCH FOUND:", message)
+
             if message not in last_sent_messages:
                 send_to_discord(message)
                 last_sent_messages.add(message)
-
-# Continuous loop
-if __name__ == "__main__":
-    while True:
-        main()
-        # 5 minutes for testing, adjust to 21600 for 6 hours
-        time.sleep(300)
-    
